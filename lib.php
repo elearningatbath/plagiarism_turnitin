@@ -1877,7 +1877,6 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
     public function event_handler($eventdata) {
         global $DB, $CFG;
         $cm = get_coursemodule_from_id($eventdata->modulename, $eventdata->cmid);
-
         // Initialise module settings.
         $plagiarismsettings = $this->get_settings($eventdata->cmid);
         $moduletiienabled = $this->get_config_settings('mod_'.$eventdata->modulename);
