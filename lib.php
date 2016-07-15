@@ -24,12 +24,13 @@ if (!defined('MOODLE_INTERNAL')) {
 }
 
 define('PLAGIARISM_TURNITIN_NUM_RECORDS_RETURN', 500);
-define('PLAGIARISM_TURNITIN_CRON_SUBMISSIONS_LIMIT', 200);
+define('PLAGIARISM_TURNITIN_CRON_SUBMISSIONS_LIMIT', 50);
 
 // Define accepted files if the module is not accepting any file type.
 global $turnitinacceptedfiles;
-$turnitinacceptedfiles = array('.doc', '.docx', '.ppt', '.pptx', '.pps', '.ppsx', '.pdf',
-                                '.txt', '.htm', '.html', '.hwp', '.odt', '.wpd', '.ps', '.rtf');
+$turnitinacceptedfiles = array('.doc', '.docx', '.ppt', '.pptx', '.pps', '.ppsx',
+                                '.pdf', '.txt', '.htm', '.html', '.hwp', '.odt',
+                                '.wpd', '.ps', '.rtf', '.xls', '.xlsx');
 
 global $tiipp;
 $tiipp = new stdClass();
@@ -168,7 +169,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
 
         foreach ($settingsfields as $field) {
             if (isset($data->$field)) {
-                $optionfield = new object();
+                $optionfield = new stdClass();
                 $optionfield->cm = $data->coursemodule;
                 $optionfield->name = $field;
                 $optionfield->value = $data->$field;
@@ -212,7 +213,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
 
             $plagiarismvalues = $this->get_settings($cmid);
             $plagiarismelements = $this->get_settings_fields();
-            $defaults = $DB->get_records_menu('plagiarism_turnitin_config', array('cm' => null),     '', 'name,value');
+
             $turnitinpluginview = new turnitinplugin_view();
             $plagiarismvalues["plagiarism_rubric"] = ( !empty($plagiarismvalues["plagiarism_rubric"]) ) ?
                                                                 $plagiarismvalues["plagiarism_rubric"] : 0;
@@ -237,16 +238,10 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
             }
 
             // Set the default value for each option as the value we have stored.
-            foreach($defaults as $name => $value){
-                foreach ($plagiarismelements as $element) {
-                    if (isset($plagiarismvalues[$element])) {
-                        $mform->setDefault($element, $plagiarismvalues[$element]);
-                    }
-                    else{
-                        $mform->setDefault($name,$value);
-                    }
+            foreach ($plagiarismelements as $element) {
+                if (isset($plagiarismvalues[$element])) {
+                    $mform->setDefault($element, $plagiarismvalues[$element]);
                 }
-
             }
         }
     }
@@ -981,7 +976,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
                                                 get_string($langstring, 'plagiarism_turnitin') : $plagiarismfile->errormsg;
                         } else {
                             $errorstring = get_string('errorcode'.$plagiarismfile->errorcode,
-                                            'turnitintooltwo', display_size(TURNITINTOOLTWO_MAX_FILE_UPLOAD_SIZE));
+                                            'plagiarism_turnitin', display_size(TURNITINTOOLTWO_MAX_FILE_UPLOAD_SIZE));
                         }
                         $statusstr = get_string('turnitinstatus', 'plagiarism_turnitin').': '.get_string('deleted', 'plagiarism_turnitin').'<br />';
                         $statusstr .= get_string('because', 'plagiarism_turnitin').'<br />"'.$errorstring.'"';
@@ -1135,7 +1130,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
 
         if ($submissiondata = $DB->get_record('plagiarism_turnitin_files', array('id' => $submissionid),
                                                  'id, cm, userid, identifier, similarityscore, grade, submissiontype, orcapable, student_read, gm_feedback')) {
-            $plagiarismfile = new object();
+            $plagiarismfile = new stdClass();
             $plagiarismfile->id = $submissiondata->id;
             $plagiarismfile->similarityscore = (is_numeric($tiisubmission->getOverallSimilarity())) ?
                                                     $tiisubmission->getOverallSimilarity() : null;
@@ -1429,7 +1424,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
             $peermarkassignments = $readassignment->getPeermarkAssignments();
             if ($peermarkassignments) {
                 foreach ($peermarkassignments as $peermarkassignment) {
-                    $peermark = new object();
+                    $peermark = new stdClass();
                     $peermark->tiiassignid = $peermarkassignment->getAssignmentId();
                     $peermark->parent_tii_assign_id = $readassignment->getAssignmentId();
                     $peermark->dtstart = strtotime($peermarkassignment->getStartDate());
@@ -1826,7 +1821,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
                                                                                                     'id, cm, externalid, userid');
                             if ($cm = get_coursemodule_from_id('', $currentsubmission->cm)) {
 
-                                $plagiarismfile = new object();
+                                $plagiarismfile = new stdClass();
                                 $plagiarismfile->id = $currentsubmission->id;
                                 $plagiarismfile->externalid = $tiisubmissionid;
                                 $plagiarismfile->similarityscore = (is_numeric($readsubmission->getOverallSimilarity())) ?
@@ -1927,7 +1922,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
     public function migrate_previous_course($coursedata, $turnitincid, $workflowcontext = "site") {
         global $DB, $USER;
 
-        $turnitincourse = new object();
+        $turnitincourse = new stdClass();
         $turnitincourse->courseid = $coursedata->id;
         $turnitincourse->ownerid = $USER->id;
         $turnitincourse->turnitin_cid = $turnitincid;
@@ -2181,6 +2176,16 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
                             turnitintooltwo_activitylog('File not found: '.$pathnamehash, 'PP_NO_FILE');
                             $result = true;
                             continue;
+                        } else {
+                            try {
+                                $file->get_content();
+                            } catch (Exception $e) {
+                                turnitintooltwo_activitylog('File content not found: '.$pathnamehash, 'PP_NO_FILE');
+                                mtrace($e);
+                                mtrace('File content not found. pathnamehash: '.$pathnamehash);
+                                $result = true;
+                                continue;
+                            }
                         }
 
                         if ($file->get_filename() === '.') {
@@ -2216,7 +2221,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
     private function create_new_tii_submission($cm, $user, $identifier, $submissiontype) {
         global $DB;
 
-        $plagiarismfile = new object();
+        $plagiarismfile = new stdClass();
         $plagiarismfile->cm = $cm->id;
         $plagiarismfile->userid = $user->id;
         $plagiarismfile->identifier = $identifier;
@@ -2241,7 +2246,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
     private function reset_tii_submission($cm, $user, $identifier, $currentsubmission, $submissiontype) {
         global $DB;
 
-        $plagiarismfile = new object();
+        $plagiarismfile = new stdClass();
         $plagiarismfile->id = $currentsubmission->id;
         $plagiarismfile->identifier = $identifier;
         $plagiarismfile->statuscode = "pending";
@@ -2335,7 +2340,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
                                             $errorcode, $previoussubmission) {
         global $DB;
 
-        $plagiarismfile = new object();
+        $plagiarismfile = new stdClass();
         if ($submissionid != 0) {
             $plagiarismfile->id = $submissionid;
         }
@@ -2406,15 +2411,13 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
                     $title = $file->get_filename();
                     $timemodified = $file->get_timemodified();
                     $filename = $file->get_filename();
-                    try{
+
+                    try {
                         $textcontent = $file->get_content();
-                    }
-                    catch (\Exception $e){
-                            //log to tii
-                        turnitintooltwo_activitylog('File not found: '.$identifier, 'PP_NO_FILE');
-                        return true;
-                    }
-                    if (empty($textcontent)) {
+                    } catch (Exception $e) {
+                        turnitintooltwo_activitylog('File content not found on submission: '.$pathnamehash, 'PP_NO_FILE');
+                        mtrace($e);
+                        mtrace('File content not found on submission. pathnamehash: '.$pathnamehash);
                         $errorcode = 9;
                     }
                 } else {
@@ -2534,13 +2537,6 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
             }
         }
 
-        // Do not submit if we're not accepting anything and content is less than 20 words or 100 characters.
-        $content = explode(' ', $textcontent);
-        if (($settings['plagiarism_allow_non_or_submissions'] != 1 &&
-                (strlen($textcontent) < 100 || count($content) < 20)) || empty($textcontent)) {
-            $errorcode = 1;
-        }
-
         // Don't submit if a user has not accepted the eula.
         if ($user->id == $submitter && $user->user_agreement_accepted != 1) {
             $errorcode = 3;
@@ -2550,7 +2546,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
         $acceptanyfiletype = (!empty($settings["plagiarism_allow_non_or_submissions"])) ? 1 : 0;
         if (!$acceptanyfiletype && $submissiontype == 'file') {
             $filenameparts = explode('.', $filename);
-            $fileext = end($filenameparts);
+            $fileext = strtolower(end($filenameparts));
             if (!in_array(".".$fileext, $turnitinacceptedfiles)) {
                 $errorcode = 4;
             }
@@ -2628,7 +2624,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
             $newsubmission = $response->getSubmission();
             $newsubmissionid = $newsubmission->getSubmissionId();
 
-            $plagiarismfile = new object();
+            $plagiarismfile = new stdClass();
             if ($apimethod == "replaceSubmission" || $submissionid != 0) {
                 $plagiarismfile->id = $submissionid;
             }
@@ -2662,7 +2658,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
             }
 
             // Add config field to show submissions have been made which we use to lock anonymous marking setting
-            $configfield = new object();
+            $configfield = new stdClass();
             $configfield->cm = $cm->id;
             $configfield->name = 'submitted';
             $configfield->value = 1;
@@ -2700,7 +2696,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
         } catch (Exception $e) {
             $errorstring = (empty($previoussubmission->externalid)) ? "pp_createsubmissionerror" : "pp_updatesubmissionerror";
 
-            $plagiarismfile = new object();
+            $plagiarismfile = new stdClass();
             if ($submissionid != 0) {
                 $plagiarismfile->id = $submissionid;
             }
