@@ -2406,7 +2406,15 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
                     $title = $file->get_filename();
                     $timemodified = $file->get_timemodified();
                     $filename = $file->get_filename();
-                    $textcontent = $file->get_content();
+
+                    try{
+                        $textcontent = $file->get_content();
+                    }
+                    catch (\Exception $e){
+                            //log to tii
+                        turnitintooltwo_activitylog('File not found: '.$identifier, 'PP_NO_FILE');
+                        return true;
+                    }
                     if (empty($textcontent)) {
                         $errorcode = 9;
                     }
