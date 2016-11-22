@@ -24,7 +24,7 @@ if (!defined('MOODLE_INTERNAL')) {
 }
 
 define('PLAGIARISM_TURNITIN_NUM_RECORDS_RETURN', 500);
-define('PLAGIARISM_TURNITIN_CRON_SUBMISSIONS_LIMIT', 50);
+define('PLAGIARISM_TURNITIN_CRON_SUBMISSIONS_LIMIT', 200);
 
 // Define accepted files if the module is not accepting any file type.
 global $turnitinacceptedfiles;
@@ -2415,9 +2415,9 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
                     try {
                         $textcontent = $file->get_content();
                     } catch (Exception $e) {
-                        turnitintooltwo_activitylog('File content not found on submission: '.$pathnamehash, 'PP_NO_FILE');
+                        turnitintooltwo_activitylog('File content not found on submission: '.$identifier, 'PP_NO_FILE');
                         mtrace($e);
-                        mtrace('File content not found on submission. pathnamehash: '.$pathnamehash);
+                        mtrace('File content not found on submission. pathnamehash: '.$identifier);
                         $errorcode = 9;
                     }
                 } else {
