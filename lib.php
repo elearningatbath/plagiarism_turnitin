@@ -2406,7 +2406,6 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
                     $title = $file->get_filename();
                     $timemodified = $file->get_timemodified();
                     $filename = $file->get_filename();
-
                     try{
                         $textcontent = $file->get_content();
                     }
